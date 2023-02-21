@@ -47,7 +47,16 @@ async function scrapeLamudi({ query, detailed = false }) {
 
 async function scrapeDetails(url) {
   // TO DO: implement scraping details
-  return null;
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: "networkidle", timeout: 0 });
+
+  const title = await page
+    .locator("h1.Title-pdp-title", { timeout: 0 })
+    .innerText();
+
+  await page.close();
+
+  return { title };
 }
 
 const data = await scrapeLamudi({ query: "?q=jakarta", detailed: true });
