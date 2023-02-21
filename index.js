@@ -14,7 +14,7 @@ async function scrapeLamudi({ query, detailed = false }) {
 
   let data = [];
   for (const item of allItems.slice(0, 1)) {
-    const res = await getGeneralData(item);
+    const res = await scrapeGeneralData(item);
     if (!detailed) data.push(res);
 
     if (detailed) {
@@ -31,7 +31,7 @@ async function scrapeLamudi({ query, detailed = false }) {
   return data;
 }
 
-async function getGeneralData(item) {
+async function scrapeGeneralData(item) {
   const title = await item.locator(".ListingCell-KeyInfo-title").innerText();
   const address = await item
     .locator(".ListingCell-KeyInfo-address-text")
