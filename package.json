@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@sparticuz/chromium": "^111.0.0",
     "playwright": "^1.30.0",
     "playwright-core": "^1.30.0"
   },
