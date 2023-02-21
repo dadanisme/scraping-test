@@ -13,7 +13,7 @@ async function scrapeLamudi({ query, detailed = false }) {
   const allItems = await items.all();
 
   let data = [];
-  for (const item of allItems.slice(0, 1)) {
+  for (const item of allItems) {
     const res = await scrapeGeneralData(item);
     if (!detailed) data.push(res);
 
