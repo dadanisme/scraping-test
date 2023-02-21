@@ -292,7 +292,7 @@ async function scrapeDetails(url) {
 }
 
 const data = await scrapeLamudi({
-  type: "rent",
+  type: "buy",
   query: "bandung",
   detailed: true,
 });
