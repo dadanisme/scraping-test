@@ -3,9 +3,9 @@ import * as fs from "fs";
 
 const browser = await launchBrowser();
 
-async function scrapeLamudi({ query, detailed = false }) {
+async function scrapeLamudi({ query = "", detailed = false, type = "buy" }) {
+  const url = `https://www.lamudi.co.id/${type}/?q=${query}`;
   const page = await browser.newPage();
-  const url = "https://www.lamudi.co.id/buy/" + query;
   await page.goto(url, { waitUntil: "networkidle" });
 
   const items = page.locator("div.ListingCell-wrapper");
@@ -14,7 +14,7 @@ async function scrapeLamudi({ query, detailed = false }) {
 
   let data = [];
   for (const item of allItems) {
-    const res = await scrapeGeneralData(item);
+    const res = await scrapeGeneralData(item, url);
     if (!detailed) data.push(res);
 
     if (detailed) {
@@ -31,7 +31,20 @@ async function scrapeLamudi({ query, detailed = false }) {
   return data;
 }
 
-async function scrapeGeneralData(item) {
+async function scrapeGeneralData(item, url) {
+  const allData = item.locator("div.ListingCell-AllInfo.ListingUnit");
+
+  const category = await allData.getAttribute("data-category");
+  const subCategories = await allData.getAttribute("data-subcategories");
+  const geoPoint = await allData.getAttribute("data-geo-point");
+  const sku = await allData.getAttribute("data-sku");
+  const yearBuilt = await allData.getAttribute("data-year_built");
+  const carSpaces = await allData.getAttribute("data-car_spaces");
+  const bedrooms = await allData.getAttribute("data-bedrooms");
+  const bathrooms = await allData.getAttribute("data-bathrooms");
+  const electricity = await allData.getAttribute("data-electricity");
+
+  const price = await item.locator(".PriceSection-FirstPrice").innerText();
   const title = await item.locator(".ListingCell-KeyInfo-title").innerText();
   const address = await item
     .locator(".ListingCell-KeyInfo-address-text")
@@ -39,7 +52,6 @@ async function scrapeGeneralData(item) {
   const description = await item
     .locator(".ListingCell-shortDescription")
     .innerText();
-  const price = await item.locator(".PriceSection-FirstPrice").innerText();
   const thumbnail = await item.locator("img").first().getAttribute("src");
   const imageCount = await item.locator(".ListingCell-ImageCount").innerText();
 
@@ -60,11 +72,25 @@ async function scrapeGeneralData(item) {
   const mainData = {
     title,
     address,
-    description,
+    short_description: description,
     price,
     information,
     thumbnail,
     imageCount,
+    category,
+    sub_categories: JSON.parse(subCategories) || null,
+    coordinate: JSON.parse(geoPoint) || null,
+    sku,
+    year_built: yearBuilt || null,
+    car_spaces: carSpaces || null,
+    bedrooms: bedrooms || null,
+    bathrooms: bathrooms || null,
+    electricity: electricity || null,
+    listing_type: url.includes("/rent/")
+      ? "rent"
+      : url.includes("/buy/")
+      ? "buy"
+      : null,
   };
 
   return { ...mainData };
@@ -78,6 +104,8 @@ async function scrapeDetails(url) {
   const title = await page.locator("h1.Title-pdp-title").innerText();
   const address = await page.locator("h3.Title-pdp-address").innerText();
   const price = await page.locator("div.Title-pdp-price").innerText();
+  const currency = price.split(" ")[0];
+
   const description = await page
     .locator("div.ViewMore-text-description")
     .first()
@@ -90,12 +118,15 @@ async function scrapeDetails(url) {
     .locator("img.AgentInfoV2-agent-portrait")
     .first()
     .getAttribute("src");
+  const vendorAgency = await page
+    .locator("div.AgentInfoV2-agent-agency")
+    .first()
+    .innerText();
 
   const showNumber =
     "a.AgentInfoV2-requestPhoneSection-showNumber.js-phoneLeadShowNumber";
 
   await page.locator(showNumber).first().click();
-
   await page.waitForTimeout(2000);
 
   const vendorPhone = await page
@@ -103,11 +134,8 @@ async function scrapeDetails(url) {
     .allInnerTexts();
 
   await page.keyboard.press("Escape");
-
   await page.locator("div.Banner-Images").first().click();
-
   const banner = page.locator("div.Banner-Wrapper");
-
   await page.waitForTimeout(2000);
 
   const images = banner.locator("img");
@@ -133,6 +161,17 @@ async function scrapeDetails(url) {
     })
   );
 
+  const ammenities = page.locator("span.listing-amenities-name");
+  const allAmmenities = await ammenities.all();
+
+  const ammenitiesData = await Promise.all(
+    allAmmenities.map(async (ammenity) => {
+      return await ammenity.innerText();
+    })
+  );
+
+  const nearbies = await page.locator("ul.landmark-left-link").allInnerTexts();
+
   await page.close();
 
   return {
@@ -140,17 +179,21 @@ async function scrapeDetails(url) {
     images: imageUrls.filter((url) => Boolean(url)),
     address,
     price,
-    description,
+    currency,
+    description: description.join(""),
     vendor: {
       name: vendor,
       image: vendorImage,
       phones: vendorPhone.join("").split("\n"),
+      agency: vendorAgency,
     },
-    listingData,
+    listings: listingData,
+    ammenities: ammenitiesData,
+    nearbies,
   };
 }
 
-const data = await scrapeLamudi({ query: "?q=bogor", detailed: true });
+const data = await scrapeLamudi({});
 
 fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
 console.log("done");
