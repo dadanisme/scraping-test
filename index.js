@@ -21,10 +21,10 @@ async function scrapeLamudi({ query, detailed = false }) {
       const link = await item
         .locator(".ListingCell-MainImage > a")
         .getAttribute("href");
-      console.log(link);
+      console.log("scraping:", link);
 
       const details = await scrapeDetails(link);
-      data.push({ ...res, details });
+      data.push({ ...res, details, url: link });
     }
   }
 
